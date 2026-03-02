@@ -33,19 +33,19 @@ class User(BaseModel):
 
 
 @app.post('/user',status_code=201)
-def create (user:User):
-    if not user.text or len(user.text)>200:
-        raise(HTTPException(status_code=400,detail="text len 1 to 200 words"))
+def create(user: User):
+
+    if len(user.text.strip().split()) < 1 or len(user.text.split()) > 200:
+        raise HTTPException(status_code=400, detail="Text must be 1 to 200 words")
 
     while True:
         new_id = str(random.randint(1000, 9999))
         if new_id not in users:
             break
 
-
-    word_count=len(user.text.split())
-    uppercase_count =sum(1 for char in user.text if char.isupper())   
-    special_char_count =sum(1 for char in user.text if char in string.punctuation)
+    word_count = len(user.text.split())
+    uppercase_count = sum(1 for char in user.text if char.isupper())
+    special_char_count = sum(1 for char in user.text if char in string.punctuation)
 
     user_dict = {
         "id": int(new_id),
@@ -64,19 +64,20 @@ def create (user:User):
             "special_char": special_char_count
         }
     }
-    
-    users[new_id]=user_dict
 
-    with open(FILE,"w") as f:
-        json.dump(users,f,indent=4)
-
-    return data
-    
-    
-        # Save in analysis.json
+    users[new_id] = user_dict
     analysis_data[new_id] = analysis_dict
+
+    with open(User_FILE, "w") as f:
+        json.dump(users, f, indent=4)
+
     with open(ANALYSIS_FILE, "w") as f:
         json.dump(analysis_data, f, indent=4)
+
+    return {
+        "user": user_dict,
+        "analysis": analysis_dict
+    }
 
 @app.get("/users")
 def get_users():
@@ -104,15 +105,20 @@ def get_analysis(analysis_id: int):
 @app.delete("/users/{user_id}")
 def del_user(user_id:int):
     if str(user_id) not in users:
-        raise HTTPException(status_code=404,detail="user not fount ")
+        raise HTTPException(status_code=404,detail="user not found ")
     
     deleted_user = users[str(user_id)] 
-
-
+    
     del users[str(user_id)]
 
-    with open (FILE,"w") as f:
-        json.dump(users,f,indent=4)
+    if str(user_id) in analysis_data:
+        del analysis_data[str(user_id)]
+
+    with open(User_FILE,"w") as f:
+       json.dump(users,f,indent=4)
+
+    with open(ANALYSIS_FILE,"w") as f:
+       json.dump(analysis_data,f,indent=4)
 
     return {"message":"user deleted",
            "deleted_data": deleted_user
